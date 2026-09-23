@@ -73,30 +73,35 @@ export const BackdropLogo = defineComponent({
 });
 
 /* ================================================================== *
- * components/CustomCursor.vue
+ * components/CustomCursor.vue — accent spotlight, not a fake pointer
  * ================================================================== */
 export const CustomCursor = defineComponent({
   name: "CustomCursor",
   setup() {
-    const dot = ref<HTMLElement | null>(null);
-    const ring = ref<HTMLElement | null>(null);
-    let tx = 0, ty = 0, rx = 0, ry = 0, raf = 0;
-    const move = (e: MouseEvent) => { tx = e.clientX; ty = e.clientY; };
-    const over = (e: MouseEvent) => {
-      const t = e.target as HTMLElement;
-      const hot = !!t.closest("a,button,input,textarea,[data-hot]");
-      if (ring.value) {
-        ring.value.style.width = hot ? "68px" : "38px";
-        ring.value.style.height = hot ? "68px" : "38px";
+    const spot = ref<HTMLElement | null>(null);
+    let tx = 0, ty = 0, x = 0, y = 0, size = 640, target = 640, raf = 0, visible = false;
+    const move = (e: MouseEvent) => {
+      tx = e.clientX;
+      ty = e.clientY;
+      if (!visible && spot.value) {
+        visible = true;
+        x = tx;
+        y = ty;
+        spot.value.style.opacity = "1";
       }
     };
+    const over = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      target = t.closest("a,button,input,textarea,[data-hot]") ? 860 : 640;
+    };
     const loop = () => {
-      rx = lerp(rx, tx, 0.14);
-      ry = lerp(ry, ty, 0.14);
-      if (dot.value) dot.value.style.transform = `translate3d(${tx - 3}px,${ty - 3}px,0)`;
-      if (ring.value) {
-        const s = ring.value.offsetWidth / 2;
-        ring.value.style.transform = `translate3d(${rx - s}px,${ry - s}px,0)`;
+      x = lerp(x, tx, 0.12);
+      y = lerp(y, ty, 0.12);
+      size = lerp(size, target, 0.08);
+      if (spot.value) {
+        spot.value.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
+        spot.value.style.width = size.toFixed(1) + "px";
+        spot.value.style.height = size.toFixed(1) + "px";
       }
       raf = requestAnimationFrame(loop);
     };
@@ -110,9 +115,9 @@ export const CustomCursor = defineComponent({
       window.removeEventListener("mouseover", over);
       cancelAnimationFrame(raf);
     });
-    return { dot, ring };
+    return { spot };
   },
-  template: `<div><div ref="ring" class="cursor-ring"></div><div ref="dot" class="cursor-dot"></div></div>`,
+  template: `<div ref="spot" class="spotlight" aria-hidden="true"></div>`,
 });
 
 /* ================================================================== *
