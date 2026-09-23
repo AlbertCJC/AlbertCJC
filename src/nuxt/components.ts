@@ -596,8 +596,8 @@ export const ContactSection = defineComponent({
   setup() {
     const sent = ref(false);
     const socials = [
-      { label: "GitHub", href: "#" },
-      { label: "LinkedIn", href: "#" },
+      { label: "GitHub", href: "https://github.com/AlbertCJC" },
+      { label: "LinkedIn", href: "https://linkedin.com/in/AlbertCJC" },
       { label: "Email", href: "mailto:" + owner.email },
     ];
     const fields = [

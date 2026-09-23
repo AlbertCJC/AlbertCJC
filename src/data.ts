@@ -2,7 +2,7 @@ export const owner = {
   name: "John Albert Carbajal",
   short: "John Albert",
   role: "Full Stack Developer",
-  email: "hello@albertcjc.dev",
+  email: "johnalbertcarbajal172@gmail.com",
   tagline: "Detail oriented, tailored specifically for your needs.",
 };
 
