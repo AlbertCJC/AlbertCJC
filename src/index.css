@@ -1,0 +1,226 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Instrument Serif", ui-serif, Georgia, serif;
+  --color-ink: #0a0a0b;
+  --color-bone: #f4f1ec;
+  --color-accent: #c8623c;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-ink);
+  color: var(--color-bone);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-bone);
+}
+
+/* --- film grain ------------------------------------------------- */
+.grain::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* --- split heading ---------------------------------------------- */
+.split-heading {
+  display: block;
+}
+.split-word {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  /* room for descenders + italic overhang so nothing is clipped */
+  padding: 0 0.06em 0.1em 0;
+  /* guaranteed word gap — words are separate elements, so the source
+     whitespace is not rendered and must be reinstated here */
+  margin-right: 0.26em;
+}
+.split-inner {
+  display: inline-block;
+  white-space: pre;
+  transform: translateY(110%) rotate(3deg);
+  transition: transform 1.05s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+.split-inner.up {
+  transform: translateY(0) rotate(0deg);
+}
+
+/* --- reveal ------------------------------------------------------ */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.9s cubic-bezier(0.16, 1, 0.3, 1), transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal.in {
+  opacity: 1;
+  transform: none;
+}
+
+/* --- marquee ----------------------------------------------------- */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.marquee-track { animation: marquee 34s linear infinite; }
+.marquee-track.rev { animation-direction: reverse; }
+
+/* --- magnetic ---------------------------------------------------- */
+.magnetic {
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+/* --- custom cursor ----------------------------------------------- */
+.cursor-dot,
+.cursor-ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 70;
+  border-radius: 9999px;
+  mix-blend-mode: difference;
+}
+.cursor-dot { width: 6px; height: 6px; background: #fff; }
+.cursor-ring {
+  width: 38px; height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  transition: width .3s, height .3s, opacity .3s;
+}
+@media (hover: none) {
+  .cursor-dot, .cursor-ring { display: none; }
+}
+
+/* --- scroll hud -------------------------------------------------- */
+.hud-line {
+  transform-origin: top;
+  transition: transform 0.1s linear;
+}
+
+/* --- hide scrollbar in horizontal rails --------------------------- */
+.no-bar::-webkit-scrollbar { display: none; }
+.no-bar { scrollbar-width: none; }
+
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* --- tailoring motif: ruler tick rule ---------------------------- */
+.tick-rule {
+  height: 14px;
+  background-image: repeating-linear-gradient(
+    to right,
+    rgba(244, 241, 236, 0.35) 0 1px,
+    transparent 1px 12px
+  );
+}
+.tick-rule-lg {
+  height: 26px;
+  background-image:
+    repeating-linear-gradient(to right, rgba(200, 98, 60, 0.9) 0 1px, transparent 1px 60px),
+    repeating-linear-gradient(to right, rgba(244, 241, 236, 0.3) 0 1px, transparent 1px 12px);
+  background-size: 100% 26px, 100% 13px;
+  background-position: 0 0, 0 0;
+  background-repeat: repeat-x;
+}
+
+/* --- stitch line -------------------------------------------------- */
+.stitch {
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--color-accent) 0 7px,
+    transparent 7px 14px
+  );
+  height: 1px;
+}
+.stitch-v {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(244, 241, 236, 0.25) 0 6px,
+    transparent 6px 13px
+  );
+  width: 1px;
+}
+
+/* --- spec annotation bracket -------------------------------------- */
+.spec-note {
+  font-size: 10px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: rgba(244, 241, 236, 0.3);
+}
+
+/* --- draw-on underline for the promise line ----------------------- */
+@keyframes draw {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.draw-line {
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.draw-line.on { transform: scaleX(1); }
+
+/* --- glassmorphism island ----------------------------------------- */
+.glass {
+  background: linear-gradient(
+    180deg,
+    rgba(244, 241, 236, 0.11) 0%,
+    rgba(244, 241, 236, 0.05) 100%
+  );
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  border: 1px solid rgba(244, 241, 236, 0.14);
+  box-shadow:
+    0 12px 40px -10px rgba(0, 0, 0, 0.7),
+    0 2px 10px -4px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.04);
+}
+/* specular sheen along the top edge */
+.glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.09) 42%,
+    transparent 62%
+  );
+  opacity: 0.85;
+}
+.glass-pill {
+  background: rgba(244, 241, 236, 0.1);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.14);
+}
+
+/* --- corner crop marks -------------------------------------------- */
+.crop::before,
+.crop::after {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: rgba(200, 98, 60, 0.75);
+  pointer-events: none;
+}
+.crop::before { top: -1px; left: -1px; border-top: 1px solid; border-left: 1px solid; }
+.crop::after { bottom: -1px; right: -1px; border-bottom: 1px solid; border-right: 1px solid; }
