@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1400" height="900" viewBox="0 0 1400 900"
+     preserveAspectRatio="xMidYMid slice"
+     role="img" aria-labelledby="pp-title pp-desc">
+  <!-- Project placeholder plate.
+       Self-contained on purpose: literal hex only, because CSS variables do not
+       resolve inside an SVG referenced by <img>. Colours are the @theme tokens
+       from src/index.css — ink #0a0a0b, bone #f4f1ec, accent #c8623c — and the
+       geometry echoes the page's own tailoring motifs: .crop corner marks,
+       .tick-rule, and the hero's accent dot.
+       Intrinsic 1400x900 matches the ratio of the Pexels crops it replaces, so
+       the rail geometry does not move when it swaps in. -->
+  <title id="pp-title">Project placeholder</title>
+  <desc id="pp-desc">Editorial placeholder plate: a diagonal hatch field inside a hairline frame, accent corner crop marks, a tick rule along the bottom edge, and a centred Placeholder label.</desc>
+
+  <defs>
+    <pattern id="pp-hatch" width="56" height="56" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="56" stroke="#f4f1ec" stroke-width="2" stroke-opacity="0.07"/>
+    </pattern>
+  </defs>
+
+  <!-- plate + hatch field -->
+  <rect width="1400" height="900" fill="#0a0a0b"/>
+  <rect width="1400" height="900" fill="url(#pp-hatch)"/>
+
+  <!-- hairline frame -->
+  <rect x="88" y="88" width="1224" height="724"
+        fill="none" stroke="#f4f1ec" stroke-opacity="0.16" stroke-width="2"/>
+
+  <!-- corner crop marks, echoing .crop::before / .crop::after -->
+  <path d="M56 88V56h48 M1296 56h48v32 M1344 812v32h-48 M104 844H56v-32"
+        fill="none" stroke="#c8623c" stroke-width="5" stroke-linecap="square"/>
+
+  <!-- bottom tick rule, echoing .tick-rule -->
+  <path d="M120 756H1280" stroke="#f4f1ec" stroke-opacity="0.18" stroke-width="2"/>
+  <path d="M120 756v16M160 756v16M200 756v16M240 756v16M280 756v16M320 756v16M360 756v16M400 756v16M440 756v16M480 756v16M520 756v16M560 756v16M600 756v16M640 756v16M680 756v16M720 756v16M760 756v16M800 756v16M840 756v16M880 756v16M920 756v16M960 756v16M1000 756v16M1040 756v16M1080 756v16M1120 756v16M1160 756v16M1200 756v16M1240 756v16M1280 756v16"
+        fill="none" stroke="#f4f1ec" stroke-opacity="0.3" stroke-width="2"/>
+  <path d="M120 748v32M240 748v32M360 748v32M480 748v32M600 748v32M720 748v32M840 748v32M960 748v32M1080 748v32M1200 748v32"
+        fill="none" stroke="#c8623c" stroke-opacity="0.9" stroke-width="3"/>
+
+  <!-- the hero's accent dot, moved inside the frame -->
+  <circle cx="1296" cy="796" r="9" fill="#c8623c"/>
+
+  <!-- label stack. `dx` offsets the trailing letter-spacing so text-anchor="middle"
+       still lands the optical centre on 700. -->
+  <g text-anchor="middle" font-family="system-ui, 'Segoe UI', Arial, sans-serif">
+    <text x="700" y="396" dx="6" font-size="26" letter-spacing="12" font-weight="500" fill="#c8623c">IMAGE SLOT</text>
+    <text x="700" y="452" dx="9" font-size="58" letter-spacing="18" font-weight="700" fill="#f4f1ec">PLACEHOLDER</text>
+    <path d="M560 478h280" stroke="#c8623c" stroke-width="3"/>
+    <text x="700" y="520" dx="3" font-size="26" letter-spacing="6" fill="#f4f1ec" fill-opacity="0.6">replace with a project screenshot</text>
+  </g>
+</svg>

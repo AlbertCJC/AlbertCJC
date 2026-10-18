@@ -17,58 +17,68 @@ export type Project = {
 };
 
 /**
- * Replace these with your real builds. `kind` is deliberately honest —
- * say whether it was a client job, a rebuild, or a self-directed project.
+ * PLACEHOLDER CONTENT — nothing in this array is a real project.
+ *
+ * Swap each entry for a real build. Keep every field, including `kind`:
+ * say honestly whether it was a client job, a rebuild, or a self-directed
+ * project.
+ *
+ * Two things to know before you edit this:
+ *
+ * 1. Keep it at exactly four entries. `PinnedWork` derives both the section
+ *    height and the "01 / 04" readout from `projects.length`
+ *    (src/nuxt/components.ts:489 and :508), so a fifth card lengthens the
+ *    desktop scrub distance and renumbers the counter.
+ * 2. Blurbs are clamped to two lines on short landscape phones
+ *    (`short:line-clamp-2` at components.ts:528, max-height: 620px) and the
+ *    card has to fit a pinned frame that is only ~375px tall there. Keep each
+ *    blurb to a short sentence — well under ~150 characters.
+ *
+ * Images are root-relative because they are served out of `public/`: the same
+ * form as `/favicon.svg` in index.html. A bare `images/foo.jpg` only resolves
+ * while the page happens to sit at the site root.
  */
 export const projects: Project[] = [
   {
-    title: "Ledgerly",
-    category: "Full Stack · Web App",
-    kind: "Personal project",
-    blurb:
-      "An expense tracker I built to learn Postgres properly. Receipts upload to S3, get parsed, and land in a monthly view. Auth, database and UI are all mine.",
-    image:
-      "https://images.pexels.com/photos/6177562/pexels-photo-6177562.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=900&w=1400",
-    tags: ["Next.js", "Postgres", "Tailwind", "Auth"],
+    title: "Project title 01",
+    category: "Category · Subtype",
+    kind: "Kind placeholder",
+    blurb: "Short blurb goes here.",
+    image: "/images/project-placeholder.svg",
+    tags: ["Tag one", "Tag two", "Tag three", "Tag four"],
     links: [
       { label: "Live site", href: "#" },
       { label: "Source", href: "#" },
     ],
   },
   {
-    title: "Northside Interiors",
-    category: "Redesign · Marketing Site",
-    kind: "Client work",
-    blurb:
-      "Their old site was a page builder with 14 fonts on it. I rebuilt it on a four-column grid with two typefaces and real photos of their work. Loads in about a second now.",
-    image:
-      "https://images.pexels.com/photos/38139753/pexels-photo-38139753.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=900&w=1400",
-    tags: ["Redesign", "Vue", "CMS", "Responsive"],
+    title: "Project title 02",
+    category: "Category · Format",
+    kind: "Kind placeholder",
+    blurb: "One sentence about the project goes here.",
+    image: "/images/project-placeholder.svg",
+    tags: ["Tag 01", "Tag 02", "Tag 03", "Tag 04"],
     links: [{ label: "Live site", href: "#" }],
   },
   {
-    title: "Plotline",
-    category: "Full Stack · Collaboration",
-    kind: "Personal project",
-    blurb:
-      "A shared canvas where two people can drag notes around and both see it happen. Websockets, optimistic updates, and a lot of time spent on what happens when the connection drops.",
-    image:
-      "https://images.pexels.com/photos/6615036/pexels-photo-6615036.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=900&w=1400",
-    tags: ["TypeScript", "WebSockets", "Canvas", "Node"],
+    title: "Project title 03",
+    category: "Category · Discipline",
+    kind: "Kind placeholder",
+    blurb: "Short blurb goes here.",
+    image: "/images/project-placeholder.svg",
+    tags: ["Stack one", "Stack two", "Stack three", "Stack four"],
     links: [
       { label: "Live demo", href: "#" },
       { label: "Source", href: "#" },
     ],
   },
   {
-    title: "Field Notes",
-    category: "Front-end · Editorial",
-    kind: "Practice build",
-    blurb:
-      "A reading layout for long articles, built to get typography right. Markdown in, proper measure and rhythm out. No layout shift, works without JavaScript.",
-    image:
-      "https://images.pexels.com/photos/6177630/pexels-photo-6177630.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=900&w=1400",
-    tags: ["Astro", "Markdown", "Typography", "A11y"],
+    title: "Project title 04",
+    category: "Category · Section",
+    kind: "Kind placeholder",
+    blurb: "One sentence about the project goes here.",
+    image: "/images/project-placeholder.svg",
+    tags: ["Skill A", "Skill B", "Skill C", "Skill D"],
     links: [
       { label: "Live site", href: "#" },
       { label: "Source", href: "#" },

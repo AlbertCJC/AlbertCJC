@@ -8,6 +8,12 @@
   --color-accent: #c8623c;
 }
 
+/* Height-based variant for landscape phones, where a pinned frame is only
+   ~375px tall but the hero and work markup is authored for a portrait one.
+   Unlayered rules below outrank these utilities, so `short:` is the
+   tie-breaker wherever a `sm:`/`lg:` size also applies. */
+@custom-variant short (@media (max-height: 620px));
+
 html {
   scroll-behavior: smooth;
 }
@@ -23,6 +29,174 @@ body {
 ::selection {
   background: var(--color-accent);
   color: var(--color-bone);
+}
+
+/* --- pinned frames -------------------------------------------------- *
+ * `100vh` is the *large* mobile viewport: while the URL bar is showing, a
+ * `100vh` pinned frame is taller than the visible area, so whatever sits at
+ * the bottom of it (the hero's CTA row) is clipped by `overflow: hidden` and
+ * the frame cannot scroll to it. `svh` is the small viewport and is always
+ * inside what the user can see.
+ *
+ * `.pin-tall` is the scroll runway a sticky `.pin-frame` pins against.
+ * -------------------------------------------------------------------- */
+.pin-frame {
+  height: 100vh;
+}
+.pin-tall {
+  height: 190vh;
+}
+@supports (height: 100svh) {
+  .pin-frame {
+    height: 100svh;
+  }
+  .pin-tall {
+    height: 190svh;
+  }
+}
+
+/* Hero stage: scaled down by JS when the pinned frame is shorter than the
+   hero's natural height, so the CTAs can never be pushed out of the frame. */
+.hero-stage {
+  transform-origin: top center;
+}
+
+/* --- #work: pinned rail on desktop, swipeable rail on a phone -------- *
+ * Below `lg` there is no affordance for "keep scrolling to keep moving the
+ * rail sideways", and the scrub would need ~4 viewport-heights of dead
+ * scroll, so the section stops hijacking the vertical scroll: the frame
+   grows to fit its content and the rail scrolls natively with snap.
+ * -------------------------------------------------------------------- */
+.pin-rail {
+  height: auto;
+}
+.pin-rail > .pin-frame {
+  height: auto;
+  min-height: 100vh;
+  overflow: visible;
+}
+.rail-view {
+  overflow-x: auto;
+  /* `clip` would be the ideal partner here — it clips without ever creating a
+     scroll container — but it is unreachable alongside a scrollable axis: the
+     overflow coercion table makes `clip` compute to `hidden` as soon as the
+     other axis is `auto`/`scroll`/`hidden` (measured on Chromium 154:
+     `auto/clip -> auto/hidden`; only `visible`/`clip` keep it). So `hidden`
+     is the partner the rail can actually have, and it is the one this needs
+     anyway: a `hidden` box is scrollable programmatically but never by
+     gesture, so a vertical swipe over the rail falls through to the page
+     instead of being swallowed. Stated explicitly, not left to compute. */
+  overflow-y: hidden;
+  /* The card link rows carry `-my-3` to reach a 44px tap target, whose bottom
+     margin hangs 12px past the last card. Absorb it so the rail has no
+     vertical scroll range at all and cannot become a nested scroller. */
+  padding-bottom: 0.75rem;
+  /* No snap on touch. `mandatory` cannot help on a phone, because the gesture
+     has to clear half a snap pitch before the rail will move a single pixel,
+     and half a pitch is most of the screen. Measured on Chromium 154 with real
+     CDP touch, bisecting the smallest slow drag that still advances a card:
+
+       card      pitch    pitch/2   measured dead zone   viewport
+       82vw       343.8     171.9        187px           390
+       82vw       286.4     143.2        159px           320
+       82vw       361.8     180.9        196px           412
+       70vw       297.0     148.5        164px           390
+       62vw       265.8     132.9        148px           390
+       none       (any)       (n/a)         18px         all three
+
+     The dead zone is exactly `pitch/2 + 15px`, the 15px being Chromium's touch
+     slop (`kTouchSlopInDips`). So at 82vw on a 390px phone a thumb had to
+     travel 187px — 48% of the screen width — to move one card, and anything
+     shorter sprang back to precisely where it started. That, not the snap
+     strictness, is what made the rail read as "it doesn't scroll sideways":
+     the dead zone was invisible and the card filled 88% of the viewport, so a
+     normal thumb gesture produced no movement at all.
+
+     With snapping off the rail tracks the finger 1:1 (`flick - 15px` slop at
+     every card width and every viewport measured) and the dead zone collapses
+     to the 15px slop alone. This is also what mobile card carousels do in
+     practice — the native momentum does the settling. `scroll-padding-inline`
+     stays below so re-enabling snap later is a one-line change. */
+  scroll-snap-type: none;
+  /* The track carries a `px-6` lead-in, which otherwise makes snap position 0
+     sit at `scrollLeft` 24 and widens the snap dead zone at both ends by the
+     same 24px. */
+  scroll-padding-inline: 1.5rem;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
+}
+.rail-card {
+  scroll-snap-align: start;
+}
+/* The trailing "Yours could be next" panel is narrower than the scrollport
+   minus the lead padding, so `align: start` puts its snap position *past*
+   `scrollWidth - clientWidth` and it can never be reached: 72px short at 320,
+   93px at 390, 230px in landscape. Chromium papers over it by resting on the
+   clamped end (off-boundary, i.e. `mandatory` quietly not honoured); Safari
+   honours `mandatory` and snaps back to the previous card instead, so the two
+   engines disagree about where the rail ends. `align: end` is reachable by
+   construction at every width, and puts the panel fully in view. */
+.rail-tail {
+  scroll-snap-align: end;
+}
+@supports (height: 100svh) {
+  .pin-rail > .pin-frame {
+    min-height: 100svh;
+  }
+}
+@media (min-width: 1024px) {
+  .pin-rail {
+    height: var(--pin-h);
+  }
+  .pin-rail > .pin-frame {
+    height: 100vh;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .rail-view {
+    /* back to a plain box on desktop: `overflow: visible` restores both axes,
+       so the frame's own `overflow: hidden` stays the only clipper */
+    overflow: visible;
+    padding-bottom: 0;
+    scroll-padding-inline: 0;
+    scroll-snap-type: none;
+  }
+  /* same specificity as the `.rail-tail` rule above, and later in source,
+     so it wins and the rail goes back to being an unsnapped scrubbed box */
+  .rail-card,
+  .rail-tail {
+    scroll-snap-align: none;
+  }
+}
+
+/* --- landscape phones ------------------------------------------------ *
+ * Same markup, deliberately compressed so the pinned frames still fit.
+ * Written unlayered so it wins against the `sm:`/`lg:` sizes above it.
+ * -------------------------------------------------------------------- */
+@media (max-height: 620px) {
+  .hero-hint {
+    display: none;
+  }
+  .hero-portrait {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+  .hero-lead {
+    font-size: clamp(2.5rem, 7.4vw, 5rem);
+  }
+  .hero-tail {
+    font-size: clamp(1.75rem, 5.6vw, 3.5rem);
+  }
+}
+
+/* Diagnostic only: `?nosnap` pins the rail's scroll snap off so the mobile-only
+   "the rail doesn't scroll sideways" report stays reproducible by hand on a
+   real device. The default below `lg` is now `none` too, so this is currently
+   a no-op — kept deliberately so the flag still works if snapping is ever
+   turned back on, and so the rail's snap behaviour can be forced off from the
+   address bar without a rebuild. */
+html.no-snap .rail-view {
+  scroll-snap-type: none;
 }
 
 /* --- film grain ------------------------------------------------- */
@@ -230,3 +404,31 @@ body {
 }
 .crop::before { top: -1px; left: -1px; border-top: 1px solid; border-left: 1px solid; }
 .crop::after { bottom: -1px; right: -1px; border-bottom: 1px solid; border-right: 1px solid; }
+
+/* --- reduced motion ------------------------------------------------- *
+ * Scoped to what actually loops. The two marquees are the only motion on
+ * the page a user cannot stop: an autonomous, infinite, edge-to-edge
+ * translate is the textbook trigger, so it goes. Smooth scrolling goes too,
+ * since it moves the whole page on its own.
+ *
+ * What is deliberately NOT here: the blanket `transition-duration: 1ms /
+ * animation-duration: 1ms` on `*` this used to carry. It out-reached badly —
+ * it flattened every one-shot transition (the heading reveals, the underline
+ * draw, the magnetic pull) for users who have never asked them to stop, and it
+ * did not even do the one job that mattered: the hero's scroll-scrub is a
+ * per-frame inline style write with no transition on it, so no duration
+ * override could reach it, and the real cause was a `t = 0` branch in JS.
+ * That branch is gone — see HeroSection — because scroll-linked state is
+ * *user-driven*, not autonomous: nobody is made ill by a hero fading out as
+ * they scroll, only by motion that continues whether or not they asked for
+ * it. `@media (prefers-reduced-motion: reduce)` is a request to stop
+ * involuntary movement, not to flatten the whole interface.
+ * -------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .marquee-track {
+    animation: none;
+  }
+}

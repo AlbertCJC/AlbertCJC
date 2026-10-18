@@ -7,7 +7,7 @@ import {
 } from "vue/dist/vue.esm-bundler.js";
 import { projects, services, process, owner } from "../data";
 import { StackSection } from "./faq";
-import { onScrollFrame, usePageProgress, clamp, lerp } from "./composables";
+import { onScrollFrame, usePageProgress, useFinePointer, clamp, lerp } from "./composables";
 import { SplitHeading, ParallaxMedia, Magnetic, FadeUp } from "./primitives";
 
 /* ================================================================== *
@@ -79,21 +79,8 @@ export const CustomCursor = defineComponent({
   name: "CustomCursor",
   setup() {
     const spot = ref<HTMLElement | null>(null);
-    let tx = 0, ty = 0, x = 0, y = 0, size = 640, target = 640, raf = 0, visible = false;
-    const move = (e: MouseEvent) => {
-      tx = e.clientX;
-      ty = e.clientY;
-      if (!visible && spot.value) {
-        visible = true;
-        x = tx;
-        y = ty;
-        spot.value.style.opacity = "1";
-      }
-    };
-    const over = (e: MouseEvent) => {
-      const t = e.target as HTMLElement;
-      target = t.closest("a,button,input,textarea,[data-hot]") ? 860 : 640;
-    };
+    const fine = useFinePointer();
+    let tx = 0, ty = 0, x = 0, y = 0, size = 640, target = 640, raf = 0, idle = 0, visible = false;
     const loop = () => {
       x = lerp(x, tx, 0.12);
       y = lerp(y, ty, 0.12);
@@ -105,15 +92,45 @@ export const CustomCursor = defineComponent({
       }
       raf = requestAnimationFrame(loop);
     };
+    const start = () => {
+      if (!raf) raf = requestAnimationFrame(loop);
+    };
+    const stop = () => {
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+    };
+    const move = (e: MouseEvent) => {
+      tx = e.clientX;
+      ty = e.clientY;
+      window.clearTimeout(idle);
+      idle = window.setTimeout(stop, 2000);
+      if (!visible && spot.value) {
+        visible = true;
+        x = tx;
+        y = ty;
+        spot.value.style.opacity = "1";
+      }
+      start();
+    };
+    const over = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      target = t.closest("a,button,input,textarea,[data-hot]") ? 860 : 640;
+    };
     onMounted(() => {
+      /* `.spotlight` is display:none on touch (index.css, `@media (hover: none)`),
+         so the loop would spend 60fps writing into a hidden element. It also
+         only runs while the pointer is actually moving. */
+      if (!fine.value) return;
       window.addEventListener("mousemove", move, { passive: true });
       window.addEventListener("mouseover", over, { passive: true });
-      raf = requestAnimationFrame(loop);
     });
     onUnmounted(() => {
       window.removeEventListener("mousemove", move);
       window.removeEventListener("mouseover", over);
-      cancelAnimationFrame(raf);
+      window.clearTimeout(idle);
+      stop();
     });
     return { spot };
   },
@@ -190,9 +207,17 @@ export const SiteNav = defineComponent({
     onScrollFrame(() => {
       const y = window.scrollY;
       solid.value = y > 24;
-      hidden.value = y > 520 && y > last + 2;
+      const away = y > 520 && y > last + 2;
       last = y;
       spin.value = y * 0.22;
+
+      /* Scrolling dismisses the sheet, but never on the same frame it closed
+         — otherwise the toggle scrolls away from under the finger with no
+         way back to it. `wasOpen` also keeps the header on screen for that
+         one gesture. */
+      const wasOpen = open.value;
+      if (away && wasOpen) open.value = false;
+      hidden.value = away && !wasOpen;
 
       // scroll-spy
       let found = -1;
@@ -203,6 +228,14 @@ export const SiteNav = defineComponent({
         if (r.top <= window.innerHeight * 0.4 && r.bottom > window.innerHeight * 0.35) found = i;
       });
       if (found !== active.value) { active.value = found; syncPill(); }
+    });
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") open.value = false;
+    };
+    onMounted(() => {
+      window.addEventListener("keydown", onKey);
+      onUnmounted(() => window.removeEventListener("keydown", onKey));
     });
 
     return { hidden, solid, open, links, spin, active, navRef, pill };
@@ -217,10 +250,10 @@ export const SiteNav = defineComponent({
     >
       <div
         class="glass pointer-events-auto relative flex w-full max-w-5xl items-center justify-between gap-6 overflow-hidden rounded-full transition-all duration-[700ms] ease-[cubic-bezier(.16,1,.3,1)]"
-        :class="solid ? 'py-2 pl-3 pr-3 lg:pl-4' : 'py-2.5 pl-4 pr-3 lg:pl-5'"
+        :class="solid ? 'py-1.5 pl-3 pr-3 lg:pl-4' : 'py-2 pl-4 pr-3 lg:pl-5'"
       >
         <!-- brand -->
-        <a href="#top" class="group relative z-10 flex shrink-0 items-center gap-3">
+        <a href="#top" class="group relative z-10 -m-2 flex shrink-0 items-center gap-3 p-2">
           <span class="grid place-items-center rounded-full border border-white/15 bg-bone/[0.07] text-bone transition-all duration-500 group-hover:border-accent group-hover:bg-accent/15 group-hover:text-accent"
             :class="solid ? 'h-9 w-9 p-1.5' : 'h-10 w-10 p-2'">
             <AppLogo :size="solid ? 22 : 24" :style="{ transform: 'rotate(' + spin + 'deg)', transition: 'width .5s, height .5s' }" />
@@ -253,7 +286,7 @@ export const SiteNav = defineComponent({
             </a>
           </Magnetic>
           <button
-            class="grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-bone/[0.07] md:hidden"
+            class="grid h-11 w-11 place-items-center rounded-full border border-white/15 bg-bone/[0.07] md:hidden"
             :aria-expanded="open" aria-label="Toggle menu" @click="open = !open">
             <span class="relative block h-3 w-4">
               <span class="absolute left-0 block h-px w-full bg-bone transition-all duration-400"
@@ -270,6 +303,8 @@ export const SiteNav = defineComponent({
     <div
       class="pointer-events-none fixed inset-x-0 z-40 flex justify-center px-4 transition-all duration-[600ms] ease-[cubic-bezier(.16,1,.3,1)] sm:px-6 md:hidden"
       :class="open ? 'top-[5.5rem] opacity-100' : 'top-[4rem] pointer-events-none opacity-0'"
+      :inert="!open"
+      :aria-hidden="!open"
     >
       <div class="glass pointer-events-auto w-full max-w-5xl overflow-hidden rounded-3xl p-3"
         :class="open ? '' : 'pointer-events-none'">
@@ -296,25 +331,54 @@ export const HeroSection = defineComponent({
   components: { AppLogo, SplitHeading, Magnetic },
   setup() {
     const t = ref(0);
+    const frame = ref<HTMLElement | null>(null);
+    const stage = ref<HTMLElement | null>(null);
+    const fit = ref(1);
+    /* No reduced-motion branch here on purpose: this scrub is scroll-driven,
+       so the user is the one moving it. Under `prefers-reduced-motion` what
+       has to stop is autonomous motion (the marquees, handled in CSS), not a
+       hero that fades out as it leaves the viewport. */
     onScrollFrame(() => {
       t.value = clamp(window.scrollY / (window.innerHeight * 0.9));
     });
-    return { t };
+    /* The hero is authored for a portrait screen. In landscape the pinned
+       frame is ~375px tall, so rather than let `overflow: hidden` clip the
+       CTA row off the bottom, scale the stage down to whatever actually
+       fits. Recomputed whenever either box resizes (fonts, rotate, URL bar). */
+    const measureFit = () => {
+      const f = frame.value, s = stage.value;
+      if (!f || !s) return;
+      const avail = f.clientHeight - 32; // breathing room above and below
+      const natural = s.offsetHeight;
+      fit.value = natural > 0 ? Math.min(1, avail / natural) : 1;
+    };
+    onMounted(() => {
+      const ro = new ResizeObserver(measureFit);
+      if (frame.value) ro.observe(frame.value);
+      if (stage.value) ro.observe(stage.value);
+      measureFit();
+      onUnmounted(() => ro.disconnect());
+    });
+    return { t, frame, stage, fit };
   },
   template: `
-    <section id="top" class="relative h-[190vh]">
-      <div class="sticky top-0 flex h-screen items-center overflow-hidden">
+    <section id="top" class="pin-tall relative">
+      <div ref="frame" class="pin-frame sticky top-0 flex items-start justify-center overflow-hidden">
         <div class="pointer-events-none absolute left-1/2 top-[-18rem] h-[46rem] w-[46rem] -translate-x-1/2 rounded-full opacity-40 blur-[130px]"
           style="background: radial-gradient(circle, #c8623c55, transparent 65%)"></div>
 
         <!-- Background aperture lives in <BackdropLogo /> — single mark, page-wide -->
 
+        <!-- my-auto centres the stage while it fits and top-aligns it when it
+             cannot, so the frame never clips the top of the heading. -->
+        <div ref="stage" class="hero-stage my-auto w-full"
+          :style="fit < 1 ? { transform: 'scale(' + fit + ')' } : {}">
         <div class="relative mx-auto w-full max-w-7xl px-6 lg:px-10"
           :style="{ opacity: 1 - t * 1.05, transform: 'translate3d(0,' + (t * -90) + 'px,0) scale(' + (1 - t * 0.07) + ')' }">
     
         <!-- PORTRAIT: replace public/images/portrait.jpg with your own photo (square works best) -->
-          <div class="relative mb-7 inline-block">
-            <div class="relative h-20 w-20 overflow-hidden rounded-full border border-white/15 bg-white/5 sm:h-24 sm:w-24">
+          <div class="relative mb-7 inline-block short:mb-3">
+            <div class="hero-portrait relative h-20 w-20 overflow-hidden rounded-full border border-white/15 bg-white/5 sm:h-24 sm:w-24">
               <img
                 src="images/portrait.jpg"
                 alt="John Albert Carbajal"
@@ -326,7 +390,7 @@ export const HeroSection = defineComponent({
             <span class="pointer-events-none absolute -bottom-1 -right-1 h-2.5 w-2.5 rounded-full bg-accent"></span>
           </div>
 
-          <p class="mb-8 flex items-center gap-3 text-xs uppercase tracking-[0.32em] text-bone/45">
+          <p class="mb-8 flex items-center gap-3 text-xs uppercase tracking-[0.32em] text-bone/45 short:mb-3">
             <span class="h-px bg-accent transition-all duration-1000" style="width:2.5rem"></span>
             John Albert Carbajal — Full Stack Developer
           </p>
@@ -334,30 +398,31 @@ export const HeroSection = defineComponent({
           <div class="relative">
             <span class="spec-note absolute -left-16 top-2 hidden lg:block">↕ 01</span>
             <SplitHeading tag="h1" text="Detail oriented."
-              class="font-serif text-[13.5vw] leading-[0.84] tracking-tight sm:text-[11vw] lg:text-[9rem]" />
-            <div class="tick-rule my-3 max-w-[70%] opacity-50"></div>
+              class="hero-lead font-serif text-[13.5vw] leading-[0.84] tracking-tight sm:text-[11vw] lg:text-[9rem]" />
+            <div class="tick-rule my-3 max-w-[70%] opacity-50 short:my-1"></div>
             <SplitHeading tag="h1" :delay="140" text="*Tailored* to your needs."
-              class="font-serif text-[9.5vw] leading-[0.9] tracking-tight sm:text-[7.4vw] lg:text-[5.9rem]" />
+              class="hero-tail font-serif text-[9.5vw] leading-[0.9] tracking-tight sm:text-[7.4vw] lg:text-[5.9rem]" />
           </div>
 
-          <div class="mt-12 grid gap-10 border-t border-white/10 pt-9 md:grid-cols-[1.15fr_1fr] md:items-end">
-            <p class="max-w-xl text-lg font-light leading-relaxed text-bone/60">
+          <div class="mt-12 grid gap-10 border-t border-white/10 pt-9 short:mt-6 short:gap-4 short:pt-5 md:grid-cols-[1.15fr_1fr] md:items-end">
+            <p class="max-w-xl text-lg font-light leading-relaxed text-bone/60 short:text-sm">
               I build custom websites and redesign existing ones. Front-end and back-end,
               tailored to what each project actually needs — never a template with a new
               logo on it. Here's what I've built so far.
             </p>
             <div class="flex flex-wrap gap-4 md:justify-end">
               <Magnetic :strength="0.3">
-                <a href="#work" class="block rounded-full border border-white/20 px-7 py-3 text-sm transition-colors hover:border-accent hover:text-accent">See my work</a>
+                <a href="#work" class="block min-h-11 rounded-full border border-white/20 px-7 py-3 text-sm transition-colors hover:border-accent hover:text-accent">See my work</a>
               </Magnetic>
               <Magnetic :strength="0.3">
-                <a href="#contact" class="block rounded-full bg-accent px-7 py-3 text-sm font-medium text-bone transition hover:opacity-85">Get a quote</a>
+                <a href="#contact" class="block min-h-11 rounded-full bg-accent px-7 py-3 text-sm font-medium text-bone transition hover:opacity-85">Get a quote</a>
               </Magnetic>
             </div>
           </div>
         </div>
+        </div>
 
-        <div class="absolute bottom-8 left-1/2 flex -translate-x-1/2 flex-col items-center gap-3"
+        <div class="hero-hint pointer-events-none absolute bottom-8 left-1/2 flex -translate-x-1/2 flex-col items-center gap-3"
           :style="{ opacity: 1 - t * 2 }">
           <span class="text-[10px] uppercase tracking-[0.35em] text-bone/35">Scroll</span>
           <span class="relative block h-12 w-px overflow-hidden bg-white/15">
@@ -401,28 +466,55 @@ export const PinnedWork = defineComponent({
   setup() {
     const section = ref<HTMLElement | null>(null);
     const track = ref<HTMLElement | null>(null);
+    const view = ref<HTMLElement | null>(null);
     const p = ref(0);
+    /* Diagnostic escape hatch, not a feature: `?nosnap` turns off the rail's
+       scroll snapping so the reported mobile-only "the rail won't scroll
+       sideways" bug can be tested by hand on a real device. Three rounds of
+       headless automation reproduced a working rail every time, so the report
+       survives without them. Absent the flag this is a no-op — see the
+       `html.no-snap .rail-view` rule in index.css. */
+    if (new URLSearchParams(location.search).has("nosnap")) {
+      document.documentElement.classList.add("no-snap");
+    }
     onScrollFrame(() => {
       const s = section.value, tr = track.value;
       if (!s || !tr) return;
+      /* Below `lg` the rail is a native horizontal scroller (see `.rail-view`),
+         so there is no vertical travel left to map onto it and the readout
+         follows the rail's own scroll instead. */
+      if (window.innerWidth < 1024) {
+        if (tr.style.transform) tr.style.transform = "";
+        const v = view.value;
+        const max = v ? v.scrollWidth - v.clientWidth : 0;
+        p.value = max > 0 && v ? clamp(v.scrollLeft / max) : 0;
+        return;
+      }
       const total = s.offsetHeight - window.innerHeight;
       const passed = clamp(-s.getBoundingClientRect().top / total);
       p.value = passed;
       const dist = tr.scrollWidth - window.innerWidth;
       tr.style.transform = `translate3d(${-passed * dist}px,0,0)`;
-    });
-    const height = computed(() => `${projects.length * 85 + 60}vh`);
-    return { section, track, p, projects, height };
+    }, () => [view.value]);
+    const height = computed(() => `${projects.length * 85 + 60}svh`);
+    return { section, track, view, p, projects, height };
   },
   template: `
-    <section id="work" ref="section" :style="{ height }" class="relative">
-      <div class="sticky top-0 flex h-screen flex-col justify-center overflow-hidden">
-        <div class="mx-auto mb-8 flex w-full max-w-7xl items-end justify-between px-6 lg:px-10">
+    <section id="work" ref="section" class="pin-rail relative" :style="{ '--pin-h': height }">
+      <div class="pin-frame sticky top-0 flex flex-col">
+        <!-- my-auto centres the block while it fits the pinned frame and
+             top-aligns it when it cannot, so the heading is never clipped
+             off the top of the frame. -->
+        <div class="my-auto flex flex-col">
+        <div class="mx-auto mb-8 flex w-full max-w-7xl flex-col items-start gap-5 px-6 short:mb-4 sm:flex-row sm:items-end sm:justify-between sm:gap-6 lg:px-10">
           <div>
             <p class="mb-3 text-xs uppercase tracking-[0.3em] text-accent">01 — Selected work</p>
             <h2 class="font-serif text-4xl lg:text-6xl">Things I've built.</h2>
           </div>
-          <div class="hidden items-center gap-4 sm:flex">
+          <!-- Below sm the heading needs the whole line — at 320px "Things I've
+               built." is 267px of a 272px content box — so the readout takes its
+               own full-width row underneath rather than colliding with it. -->
+          <div class="flex w-full items-center gap-4 sm:w-auto">
             <span class="tabular text-xs text-bone/40">{{ String(Math.min(projects.length, Math.floor(p * projects.length) + 1)).padStart(2,'0') }} / {{ String(projects.length).padStart(2,'0') }}</span>
             <div class="h-px w-28 bg-white/15">
               <div class="h-full bg-accent transition-none" :style="{ width: (p * 100) + '%' }"></div>
@@ -430,25 +522,26 @@ export const PinnedWork = defineComponent({
           </div>
         </div>
 
-        <div ref="track" class="flex w-max gap-6 px-6 will-change-transform lg:gap-10 lg:px-10">
+        <div ref="view" class="rail-view no-bar">
+        <div ref="track" class="flex w-max gap-6 px-6 lg:gap-10 lg:px-10 lg:will-change-transform">
           <article
             v-for="(proj, i) in projects" :key="proj.title"
-            class="group w-[82vw] shrink-0 sm:w-[60vw] lg:w-[46vw]"
+            class="rail-card group w-[70vw] shrink-0 sm:w-[60vw] lg:w-[46vw]"
           >
-            <ParallaxMedia :src="proj.image" :alt="proj.title" :strength="40" height="h-[38vh] lg:h-[46vh]">
+            <ParallaxMedia :src="proj.image" :alt="proj.title" :strength="40" height="h-[38vh] short:h-[24vh] lg:h-[46vh]">
               <span class="absolute left-5 top-5 z-20 rounded-full bg-ink/70 px-3 py-1 text-[10px] uppercase tracking-[0.2em] backdrop-blur">{{ proj.kind }}</span>
               <span class="absolute right-5 top-5 z-20 font-serif text-5xl text-bone/25">{{ String(i + 1).padStart(2, '0') }}</span>
             </ParallaxMedia>
-            <div class="mt-6">
+            <div class="mt-6 short:mt-3">
               <p class="mb-2 text-[10px] uppercase tracking-[0.3em] text-accent">{{ proj.category }}</p>
               <h3 class="font-serif text-3xl lg:text-4xl">{{ proj.title }}</h3>
-              <p class="mt-3 max-w-md text-sm leading-relaxed text-bone/55">{{ proj.blurb }}</p>
-              <div class="mt-4 flex flex-wrap gap-2">
+              <p class="mt-3 max-w-md text-sm leading-relaxed text-bone/55 short:mt-2 short:line-clamp-2">{{ proj.blurb }}</p>
+              <div class="mt-4 flex flex-wrap gap-2 short:mt-2">
                 <span v-for="t in proj.tags" :key="t" class="rounded-full border border-white/15 px-3 py-1 text-[11px] text-bone/50">{{ t }}</span>
               </div>
-              <div class="mt-5 flex flex-wrap items-center gap-5">
+              <div class="mt-5 flex flex-wrap items-center gap-5 short:mt-2">
                 <a v-for="lk in proj.links" :key="lk.label" :href="lk.href" target="_blank" rel="noopener"
-                  class="group/l inline-flex items-center gap-2 text-sm text-bone/75 transition-colors hover:text-accent">
+                  class="group/l -mx-2 -my-3 inline-flex min-h-11 items-center gap-2 px-2 py-3 text-sm text-bone/75 transition-colors hover:text-accent">
                   {{ lk.label }}
                   <span class="transition-transform duration-300 group-hover/l:translate-x-1">↗</span>
                 </a>
@@ -456,13 +549,15 @@ export const PinnedWork = defineComponent({
             </div>
           </article>
 
-          <div class="flex w-[70vw] shrink-0 items-center lg:w-[34vw]">
+          <div class="rail-card rail-tail flex w-[70vw] shrink-0 items-center lg:w-[34vw]">
             <div>
               <h3 class="font-serif text-4xl leading-tight">Yours could be<br /><span class="italic text-accent">next.</span></h3>
               <p class="mt-4 max-w-xs text-sm leading-relaxed text-bone/50">Tell me what you need and I'll quote a fixed price.</p>
               <a href="#contact" class="mt-6 inline-block rounded-full bg-bone px-7 py-3 text-sm font-medium text-ink transition hover:bg-accent hover:text-bone">Get in touch →</a>
             </div>
           </div>
+        </div>
+        </div>
         </div>
       </div>
     </section>
@@ -606,9 +701,9 @@ export const ContactSection = defineComponent({
       { label: "Email", href: "mailto:" + owner.email },
     ];
     const fields = [
-      { label: "Name", type: "text", ph: "Your name", required: true },
-      { label: "Email", type: "email", ph: "you@example.com", required: true },
-      { label: "Current site (optional)", type: "text", ph: "yoursite.com", required: false },
+      { id: "name", label: "Name", type: "text", ph: "Your name", required: true, autocomplete: "name" },
+      { id: "email", label: "Email", type: "email", ph: "you@example.com", required: true, autocomplete: "email" },
+      { id: "url", label: "Current site (optional)", type: "url", ph: "yoursite.com", required: false, autocomplete: "url" },
     ];
     const t = ref(0);
     onScrollFrame(() => {
@@ -631,23 +726,23 @@ export const ContactSection = defineComponent({
             I'll reply within a day with questions and a price.
           </p>
           <div class="mt-8 space-y-3 text-bone/60">
-            <p><a :href="'mailto:' + owner.email" class="relative inline-block after:absolute after:-bottom-0.5 after:left-0 after:h-px after:w-full after:origin-right after:scale-x-0 after:bg-accent after:transition-transform hover:text-accent hover:after:origin-left hover:after:scale-x-100">{{ owner.email }}</a></p>
+            <p><a :href="'mailto:' + owner.email" class="relative -my-2.5 inline-flex min-h-11 items-center px-0 py-2.5 after:absolute after:-bottom-0.5 after:left-0 after:h-px after:w-full after:origin-right after:scale-x-0 after:bg-accent after:transition-transform hover:text-accent hover:after:origin-left hover:after:scale-x-100">{{ owner.email }}</a></p>
             <p class="text-bone/45">Remote — works anywhere</p>
           </div>
           <div class="mt-10 flex gap-6 text-sm text-bone/45">
-            <a v-for="s in socials" :key="s.label" :href="s.href" class="transition-colors hover:text-bone">{{ s.label }}</a>
+            <a v-for="s in socials" :key="s.label" :href="s.href" class="-mx-2 -my-3 inline-flex min-h-11 items-center px-2 py-3 transition-colors hover:text-bone">{{ s.label }}</a>
           </div>
         </div>
 
         <form class="space-y-5 rounded-3xl border border-white/10 bg-white/[0.03] p-9 backdrop-blur-sm lg:p-11 lg:pb-12" @submit.prevent="submit">
-          <div v-for="f in fields" :key="f.label" class="group">
-            <label class="mb-2 block text-[10px] uppercase tracking-[0.25em] text-bone/40">{{ f.label }}</label>
-            <input :type="f.type" :placeholder="f.ph" :required="f.required"
+          <div v-for="f in fields" :key="f.id" class="group">
+            <label :for="f.id" class="mb-2 block text-[10px] uppercase tracking-[0.25em] text-bone/40">{{ f.label }}</label>
+            <input :id="f.id" :name="f.id" :type="f.type" :autocomplete="f.autocomplete" :placeholder="f.ph" :required="f.required"
               class="w-full border-b border-white/15 bg-transparent py-3 text-bone outline-none transition-colors placeholder:text-bone/20 focus:border-accent" />
           </div>
           <div>
-            <label class="mb-2 block text-[10px] uppercase tracking-[0.25em] text-bone/40">What do you need?</label>
-            <textarea rows="4" required placeholder="A few sentences is enough…"
+            <label for="message" class="mb-2 block text-[10px] uppercase tracking-[0.25em] text-bone/40">What do you need?</label>
+            <textarea id="message" name="message" autocomplete="off" rows="4" required placeholder="A few sentences is enough…"
               class="w-full resize-none border-b border-white/15 bg-transparent py-3 text-bone outline-none transition-colors placeholder:text-bone/20 focus:border-accent"></textarea>
           </div>
           <Magnetic :strength="0.15" class="mt-2 block pt-2">

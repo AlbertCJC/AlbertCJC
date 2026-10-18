@@ -1,5 +1,5 @@
-import { defineComponent, ref, computed, onMounted } from "vue/dist/vue.esm-bundler.js";
-import { onScrollFrame, viewportProgress, clamp, lerp } from "./composables";
+import { defineComponent, ref, computed, onMounted, onUnmounted } from "vue/dist/vue.esm-bundler.js";
+import { onScrollFrame, viewportProgress, useFinePointer, clamp, lerp } from "./composables";
 
 /* ------------------------------------------------------------------ *
  * <SplitHeading> — line-masked, per-word stagger reveal
@@ -127,17 +127,29 @@ export const Magnetic = defineComponent({
   props: { strength: { type: Number, default: 0.35 } },
   setup(props: any) {
     const el = ref<HTMLElement | null>(null);
+    const fine = useFinePointer();
+    const pull = (e: MouseEvent) => {
+      const node = el.value;
+      if (!node) return;
+      const r = node.getBoundingClientRect();
+      const dx = (e.clientX - (r.left + r.width / 2)) * props.strength;
+      const dy = (e.clientY - (r.top + r.height / 2)) * props.strength;
+      node.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
+    };
+    const release = () => {
+      const node = el.value;
+      if (node) node.style.transform = "translate3d(0,0,0)";
+    };
     onMounted(() => {
       const node = el.value;
       if (!node) return;
-      node.addEventListener("mousemove", (e: MouseEvent) => {
-        const r = node.getBoundingClientRect();
-        const dx = (e.clientX - (r.left + r.width / 2)) * props.strength;
-        const dy = (e.clientY - (r.top + r.height / 2)) * props.strength;
-        node.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
-      });
-      node.addEventListener("mouseleave", () => {
-        node.style.transform = "translate3d(0,0,0)";
+      // no pointer to be magnetised by on a touch device
+      if (!fine.value) return;
+      node.addEventListener("mousemove", pull, { passive: true });
+      node.addEventListener("mouseleave", release);
+      onUnmounted(() => {
+        node.removeEventListener("mousemove", pull);
+        node.removeEventListener("mouseleave", release);
       });
     });
     return { el };
