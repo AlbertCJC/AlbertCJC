@@ -1,4 +1,4 @@
-<h1 align="center">Hi there, I'm John Albert Carbajal 👋</h1>
+<h1 align="center">Hi there, I'm Albert👋</h1>
 <h3 align="center">Computer Science Student | Full-Stack Developer | AI & Security Enthusiast</h3>
 
 <p align="center">
